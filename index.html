@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Justificación de Labor</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --teal-corp: #005C53;
+            --dark-corp: #121A19;
+            --orange-corp: #F57C00;
+        }
+
+        /* Habilitar scroll y quitar márgenes extra */
+        body {
+            background-color: var(--dark-corp);
+            color: #F8F9FA;
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 10px; /* Padding reducido para modo compacto */
+            overflow-y: auto; /* Permite el scroll si el iframe es muy corto */
+        }
+
+        .compact-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        /* Tamaños de input reducidos para evitar el efecto zoom */
+        .form-control {
+            background-color: rgba(0, 0, 0, 0.3) !important;
+            border: 1px solid rgba(255, 255, 255, 0.15) !important;
+            color: white !important;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 0.9rem;
+        }
+
+        .form-control:focus {
+            border-color: var(--orange-corp) !important;
+            box-shadow: 0 0 0 3px rgba(245, 124, 0, 0.2) !important;
+        }
+
+        .form-control[readonly] {
+            background-color: rgba(255, 255, 255, 0.02) !important;
+            color: #ADB5BD !important;
+            cursor: not-allowed;
+        }
+
+        .form-label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #ADB5BD;
+            margin-bottom: 4px;
+        }
+
+        .btn-submit {
+            background-color: var(--teal-corp);
+            color: white;
+            border: none;
+            padding: 10px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            border-radius: 6px;
+            width: 100%;
+            transition: background-color 0.2s;
+        }
+
+        .btn-submit:hover {
+            background-color: #007A6E;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="compact-card">
+        <h5 class="mb-3" style="color: var(--orange-corp); font-weight: bold;">Auditoría de Labor</h5>
+        
+        <form id="justificacionForm">
+            <div class="row mb-3">
+                <div class="col-6">
+                    <label class="form-label">ID Técnico</label>
+                    <input type="text" id="tecnico" class="form-control" readonly required>
+                </div>
+                <div class="col-6">
+                    <label class="form-label">Fecha</label>
+                    <input type="text" id="fecha" class="form-control" readonly required>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Justificación de Tiempos</label>
+                <textarea id="comentario" class="form-control" rows="4" placeholder="Detalle el motivo de la desviación de horas..." required></textarea>
+            </div>
+
+            <button type="submit" class="btn-submit" id="btnGuardar">Guardar Justificación</button>
+        </form>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            // 1. LEER LOS PARÁMETROS DE LA URL ENVIADOS POR POWER BI
+            const parametrosURL = new URLSearchParams(window.location.search);
+            const paramTecnico = parametrosURL.get('tecnico');
+            const paramFecha = parametrosURL.get('fecha');
+
+            // 2. AUTOCOMPLETAR LOS CAMPOS
+            if (paramTecnico) document.getElementById('tecnico').value = paramTecnico;
+            if (paramFecha) document.getElementById('fecha').value = paramFecha;
+
+            // 3. LÓGICA DE ENVÍO A POWER AUTOMATE
+            document.getElementById('justificacionForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const btn = document.getElementById('btnGuardar');
+                
+                // Creamos la llave compuesta para que Automate sepa si debe actualizar o insertar
+                const id_tecnico = document.getElementById('tecnico').value;
+                const fecha = document.getElementById('fecha').value;
+                const llave_jornada = `${id_tecnico}-${fecha}`; 
+
+                const payload = {
+                    llave_jornada: llave_jornada,
+                    tecnico: id_tecnico,
+                    fecha: fecha,
+                    comentario: document.getElementById('comentario').value
+                };
+
+                btn.disabled = true;
+                btn.innerText = "Guardando...";
+
+                try {
+                    // Reemplaza esto con tu URL real del flujo HTTP de Automate
+                    const urlAutomate = "https://prod-XX.westus.logic.azure.com:443/workflows/tu-token-aqui";
+                    
+                    const response = await fetch(urlAutomate, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if(response.ok) {
+                        btn.style.backgroundColor = "#2E7D32"; // Verde éxito
+                        btn.innerText = "Guardado con éxito";
+                        setTimeout(() => {
+                            btn.style.backgroundColor = "var(--teal-corp)";
+                            btn.innerText = "Guardar Justificación";
+                            btn.disabled = false;
+                        }, 3000);
+                    } else {
+                        throw new Error("Fallo en servidor");
+                    }
+                } catch (error) {
+                    btn.style.backgroundColor = "#C62828"; // Rojo error
+                    btn.innerText = "Error al guardar";
+                    setTimeout(() => {
+                        btn.style.backgroundColor = "var(--teal-corp)";
+                        btn.innerText = "Guardar Justificación";
+                        btn.disabled = false;
+                    }, 3000);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
