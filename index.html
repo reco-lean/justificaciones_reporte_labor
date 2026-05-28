@@ -7,7 +7,6 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         :root {
-            /* Paleta Corporativa */
             --teal-corp: #005C53;
             --dark-corp: #121A19;
             --orange-corp: #F57C00;
@@ -36,7 +35,7 @@
             padding: 20px;
         }
 
-        .form-control {
+        .form-control, .form-select {
             background-color: rgba(0, 0, 0, 0.3) !important;
             border: 1px solid rgba(255, 255, 255, 0.15) !important;
             color: white !important;
@@ -45,7 +44,7 @@
             font-size: 0.9rem;
         }
 
-        .form-control:focus {
+        .form-control:focus, .form-select:focus {
             border-color: var(--orange-corp) !important;
             box-shadow: 0 0 0 3px rgba(245, 124, 0, 0.2) !important;
         }
@@ -54,6 +53,12 @@
             background-color: rgba(255, 255, 255, 0.02) !important;
             color: #ADB5BD !important;
             cursor: not-allowed;
+        }
+
+        /* Ajuste para las opciones del select en modo oscuro */
+        option {
+            background-color: var(--dark-corp);
+            color: white;
         }
 
         .form-label {
@@ -78,6 +83,7 @@
             align-items: center;
             justify-content: center;
             gap: 8px;
+            margin-top: 15px;
         }
 
         .btn-submit:hover:not(:disabled) {
@@ -108,9 +114,27 @@
                 </div>
             </div>
 
+            <div class="row mb-3">
+                <div class="col-8">
+                    <label class="form-label">Motivo Principal</label>
+                    <select id="motivo" class="form-select" required>
+                        <option value="" disabled selected>Seleccione una categoría...</option>
+                        <option value="Entrenamiento">Entrenamiento</option>
+                        <option value="Asignación a labor fuera de QPSuite">Asignación a labor fuera de QPSuite</option>
+                        <option value="Labor de mantenimiento">Labor de mantenimiento</option>
+                        <option value="Libranza">Libranza</option>
+                        <option value="Otro">Otro</option>
+                    </select>
+                </div>
+                <div class="col-4">
+                    <label class="form-label">Horas</label>
+                    <input type="number" id="tiempo" class="form-control" step="0.1" min="0" placeholder="Ej: 2.5" required>
+                </div>
+            </div>
+
             <div class="mb-3">
-                <label class="form-label">Justificación de Tiempos</label>
-                <textarea id="comentario" class="form-control" rows="4" placeholder="Detalle el motivo de la desviación de horas..." required></textarea>
+                <label class="form-label">Detalle (Comentario)</label>
+                <textarea id="comentario" class="form-control" rows="3" placeholder="Detalle la justificación operativa..." required></textarea>
             </div>
 
             <button type="button" class="btn-submit" id="btnGuardar">
@@ -124,30 +148,31 @@
 
     <script>
         document.addEventListener("DOMContentLoaded", () => {
-            // 1. LEER PARÁMETROS DE URL
             const parametrosURL = new URLSearchParams(window.location.search);
             const paramTecnico = parametrosURL.get('tecnico');
             const paramFecha = parametrosURL.get('fecha');
+            const paramHoras = parametrosURL.get('horas'); // Ahora puede atrapar las horas desde Power BI
 
             if (paramTecnico) document.getElementById('tecnico').value = paramTecnico;
             if (paramFecha) document.getElementById('fecha').value = paramFecha;
+            if (paramHoras) document.getElementById('tiempo').value = paramHoras; // Autocompleta si viene en la URL
 
-            // 2. LÓGICA DE ENVÍO AL HACER CLIC EN EL BOTÓN
             document.getElementById('btnGuardar').addEventListener('click', async () => {
                 
+                const motivoInput = document.getElementById('motivo');
+                const tiempoInput = document.getElementById('tiempo');
                 const comentarioInput = document.getElementById('comentario');
                 
-                // Validación manual al no haber etiqueta <form>
-                if(comentarioInput.value.trim() === "") {
+                if(motivoInput.value === "" || tiempoInput.value === "" || comentarioInput.value.trim() === "") {
                     Swal.fire({
-                        title: "Campo Requerido",
-                        text: "Por favor, detalle el motivo de la desviación de horas.",
+                        title: "Campos Incompletos",
+                        text: "Asegúrese de seleccionar un motivo, asignar el tiempo y escribir un comentario.",
                         icon: "warning",
                         background: "var(--dark-corp)",
                         color: "#F8F9FA",
                         confirmButtonColor: "var(--orange-corp)"
                     });
-                    return; // Detiene la ejecución
+                    return; 
                 }
 
                 const btn = document.getElementById('btnGuardar');
@@ -157,37 +182,36 @@
                 const id_tecnico = document.getElementById('tecnico').value;
                 const fecha = document.getElementById('fecha').value;
                 
-                // Limpieza de guiones para el cruce con Power Query (ej. de 2026-05-27 a 20260527)
                 const llave_jornada = `${id_tecnico}-${fecha.replace(/-/g, '')}`; 
 
+                // NUEVO PAYLOAD CON TODAS LAS MÉTRICAS
                 const payload = {
                     llave_jornada: llave_jornada,
                     tecnico: id_tecnico,
                     fecha: fecha,
+                    motivo: motivoInput.value,
+                    tiempo: parseFloat(tiempoInput.value),
                     comentario: comentarioInput.value
                 };
 
-                // --- ESTADO VISUAL: GUARDANDO ---
                 btn.disabled = true;
                 spinner.classList.remove('d-none');
                 btnText.innerText = "Registrando...";
 
                 try {
-                    // AQUÍ VA TU URL REAL DE POWER AUTOMATE
+                    // AQUÍ PONES TU URL
                     const urlAutomate = "https://defaultc9a8e948bf0d4f8d9e9d551ac1b45a.48.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/9bd6afe1c8a6458fb8951535152cc54a/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=7om6UfdxQcNtralinqhj9vWLVgM36hT2CNhUe9XKoNk";
                     
                     const response = await fetch(urlAutomate, {
                         method: 'POST',
-                        // Si sigues teniendo problemas de CORS en Power BI Web, cambia 'application/json' por 'text/plain'
                         headers: { 'Content-Type': 'text/plain' },
                         body: JSON.stringify(payload)
                     });
 
                     if(response.ok) {
-                        // --- ESTADO VISUAL: ÉXITO ---
                         Swal.fire({
                             title: "¡Guardado!",
-                            text: "La auditoría ha sido documentada en el sistema.",
+                            text: "La auditoría ha sido documentada.",
                             icon: "success",
                             background: "var(--dark-corp)",
                             color: "#F8F9FA",
@@ -195,23 +219,23 @@
                             timer: 3000,
                             timerProgressBar: true
                         }).then(() => {
-                            comentarioInput.value = ""; // Limpia el campo
+                            comentarioInput.value = ""; 
+                            tiempoInput.value = "";
+                            motivoInput.value = "";
                         });
                     } else {
                         throw new Error("Fallo en el servidor");
                     }
                 } catch (error) {
-                    // --- ESTADO VISUAL: ERROR ---
                     Swal.fire({
-                        title: "Error de Conexión",
-                        text: "No se logró enviar la información. Verifica la red e intenta nuevamente.",
+                        title: "Error",
+                        text: "No se logró enviar. Verifica tu red.",
                         icon: "error",
                         background: "var(--dark-corp)",
                         color: "#F8F9FA",
                         confirmButtonColor: "var(--orange-corp)"
                     });
                 } finally {
-                    // --- RESTAURAR BOTÓN ---
                     btn.disabled = false;
                     spinner.classList.add('d-none');
                     btnText.innerText = "Guardar Justificación";
