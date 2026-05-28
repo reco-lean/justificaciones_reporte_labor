@@ -12,14 +12,20 @@
             --orange-corp: #F57C00;
         }
 
-        /* Habilitar scroll y quitar márgenes extra */
+        html {
+            height: 100%;
+            background-color: var(--dark-corp);
+        }
+
         body {
             background-color: var(--dark-corp);
             color: #F8F9FA;
             font-family: 'Segoe UI', sans-serif;
             margin: 0;
-            padding: 10px; /* Padding reducido para modo compacto */
-            overflow-y: auto; /* Permite el scroll si el iframe es muy corto */
+            padding: 15px;
+            height: 100%;
+            box-sizing: border-box;
+            overflow-y: auto; 
         }
 
         .compact-card {
@@ -29,7 +35,6 @@
             padding: 20px;
         }
 
-        /* Tamaños de input reducidos para evitar el efecto zoom */
         .form-control {
             background-color: rgba(0, 0, 0, 0.3) !important;
             border: 1px solid rgba(255, 255, 255, 0.15) !important;
@@ -67,11 +72,21 @@
             font-size: 0.9rem;
             border-radius: 6px;
             width: 100%;
-            transition: background-color 0.2s;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
 
-        .btn-submit:hover {
+        .btn-submit:hover:not(:disabled) {
             background-color: #007A6E;
+        }
+
+        .btn-submit:disabled {
+            background-color: #2b3a38;
+            color: #ADB5BD;
+            cursor: not-allowed;
         }
     </style>
 </head>
@@ -97,43 +112,54 @@
                 <textarea id="comentario" class="form-control" rows="4" placeholder="Detalle el motivo de la desviación de horas..." required></textarea>
             </div>
 
-            <button type="submit" class="btn-submit" id="btnGuardar">Guardar Justificación</button>
+            <button type="submit" class="btn-submit" id="btnGuardar">
+                <span class="spinner-border spinner-border-sm d-none" id="btnSpinner" role="status" aria-hidden="true"></span>
+                <span id="btnText">Guardar Justificación</span>
+            </button>
         </form>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <script>
         document.addEventListener("DOMContentLoaded", () => {
-            // 1. LEER LOS PARÁMETROS DE LA URL ENVIADOS POR POWER BI
+            // 1. LEER PARÁMETROS DE URL
             const parametrosURL = new URLSearchParams(window.location.search);
             const paramTecnico = parametrosURL.get('tecnico');
             const paramFecha = parametrosURL.get('fecha');
 
-            // 2. AUTOCOMPLETAR LOS CAMPOS
             if (paramTecnico) document.getElementById('tecnico').value = paramTecnico;
             if (paramFecha) document.getElementById('fecha').value = paramFecha;
 
-            // 3. LÓGICA DE ENVÍO A POWER AUTOMATE
+            // 2. LÓGICA DE ENVÍO
             document.getElementById('justificacionForm').addEventListener('submit', async (e) => {
                 e.preventDefault();
-                const btn = document.getElementById('btnGuardar');
                 
-                // Creamos la llave compuesta para que Automate sepa si debe actualizar o insertar
+                const btn = document.getElementById('btnGuardar');
+                const spinner = document.getElementById('btnSpinner');
+                const btnText = document.getElementById('btnText');
+                const comentarioInput = document.getElementById('comentario');
+                
                 const id_tecnico = document.getElementById('tecnico').value;
                 const fecha = document.getElementById('fecha').value;
-                const llave_jornada = `${id_tecnico}-${fecha.replace(/-/g, '')}`;
+                
+                // Llave compuesta limpiando los guiones para que cruce con Power Query
+                const llave_jornada = `${id_tecnico}-${fecha.replace(/-/g, '')}`; 
 
                 const payload = {
                     llave_jornada: llave_jornada,
                     tecnico: id_tecnico,
                     fecha: fecha,
-                    comentario: document.getElementById('comentario').value
+                    comentario: comentarioInput.value
                 };
 
+                // --- ESTADO VISUAL: GUARDANDO ---
                 btn.disabled = true;
-                btn.innerText = "Guardando...";
+                spinner.classList.remove('d-none');
+                btnText.innerText = "Registrando...";
 
                 try {
-                    // Reemplaza esto con tu URL real del flujo HTTP de Automate
+                    // AQUÍ VA TU URL DE POWER AUTOMATE
                     const urlAutomate = "https://defaultc9a8e948bf0d4f8d9e9d551ac1b45a.48.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/9bd6afe1c8a6458fb8951535152cc54a/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=7om6UfdxQcNtralinqhj9vWLVgM36hT2CNhUe9XKoNk";
                     
                     const response = await fetch(urlAutomate, {
@@ -143,24 +169,38 @@
                     });
 
                     if(response.ok) {
-                        btn.style.backgroundColor = "#2E7D32"; // Verde éxito
-                        btn.innerText = "Guardado con éxito";
-                        setTimeout(() => {
-                            btn.style.backgroundColor = "var(--teal-corp)";
-                            btn.innerText = "Guardar Justificación";
-                            btn.disabled = false;
-                        }, 3000);
+                        // --- ESTADO VISUAL: ÉXITO ---
+                        Swal.fire({
+                            title: "¡Guardado!",
+                            text: "La auditoría ha sido documentada en el sistema.",
+                            icon: "success",
+                            background: "var(--dark-corp)",
+                            color: "#F8F9FA",
+                            confirmButtonColor: "var(--teal-corp)",
+                            timer: 3000, // Se cierra solo a los 3 segundos
+                            timerProgressBar: true
+                        }).then(() => {
+                            // Limpiamos el comentario para indicar que terminó el proceso
+                            comentarioInput.value = "";
+                        });
                     } else {
-                        throw new Error("Fallo en servidor");
+                        throw new Error("Fallo en el servidor");
                     }
                 } catch (error) {
-                    btn.style.backgroundColor = "#C62828"; // Rojo error
-                    btn.innerText = "Error al guardar";
-                    setTimeout(() => {
-                        btn.style.backgroundColor = "var(--teal-corp)";
-                        btn.innerText = "Guardar Justificación";
-                        btn.disabled = false;
-                    }, 3000);
+                    // --- ESTADO VISUAL: ERROR ---
+                    Swal.fire({
+                        title: "Error de Conexión",
+                        text: "No se logró enviar la información. Verifica la red e intenta nuevamente.",
+                        icon: "error",
+                        background: "var(--dark-corp)",
+                        color: "#F8F9FA",
+                        confirmButtonColor: "var(--orange-corp)"
+                    });
+                } finally {
+                    // --- RESTAURAR BOTÓN SIEMPRE AL FINAL ---
+                    btn.disabled = false;
+                    spinner.classList.add('d-none');
+                    btnText.innerText = "Guardar Justificación";
                 }
             });
         });
