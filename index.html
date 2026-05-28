@@ -7,6 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         :root {
+            /* Paleta Corporativa */
             --teal-corp: #005C53;
             --dark-corp: #121A19;
             --orange-corp: #F57C00;
@@ -93,9 +94,9 @@
 <body>
 
     <div class="compact-card">
-        <h5 class="mb-3" style="color: var(--orange-corp); font-weight: bold;">Auditoría de Laborrr</h5>
+        <h5 class="mb-3" style="color: var(--orange-corp); font-weight: bold;">Auditoría de Labor</h5>
         
-        <form id="justificacionForm">
+        <div id="justificacionForm">
             <div class="row mb-3">
                 <div class="col-6">
                     <label class="form-label">ID Técnico</label>
@@ -112,11 +113,11 @@
                 <textarea id="comentario" class="form-control" rows="4" placeholder="Detalle el motivo de la desviación de horas..." required></textarea>
             </div>
 
-            <button type="submit" class="btn-submit" id="btnGuardar">
+            <button type="button" class="btn-submit" id="btnGuardar">
                 <span class="spinner-border spinner-border-sm d-none" id="btnSpinner" role="status" aria-hidden="true"></span>
                 <span id="btnText">Guardar Justificación</span>
             </button>
-        </form>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -131,19 +132,32 @@
             if (paramTecnico) document.getElementById('tecnico').value = paramTecnico;
             if (paramFecha) document.getElementById('fecha').value = paramFecha;
 
-            // 2. LÓGICA DE ENVÍO
-            document.getElementById('justificacionForm').addEventListener('submit', async (e) => {
-                e.preventDefault();
+            // 2. LÓGICA DE ENVÍO AL HACER CLIC EN EL BOTÓN
+            document.getElementById('btnGuardar').addEventListener('click', async () => {
                 
+                const comentarioInput = document.getElementById('comentario');
+                
+                // Validación manual al no haber etiqueta <form>
+                if(comentarioInput.value.trim() === "") {
+                    Swal.fire({
+                        title: "Campo Requerido",
+                        text: "Por favor, detalle el motivo de la desviación de horas.",
+                        icon: "warning",
+                        background: "var(--dark-corp)",
+                        color: "#F8F9FA",
+                        confirmButtonColor: "var(--orange-corp)"
+                    });
+                    return; // Detiene la ejecución
+                }
+
                 const btn = document.getElementById('btnGuardar');
                 const spinner = document.getElementById('btnSpinner');
                 const btnText = document.getElementById('btnText');
-                const comentarioInput = document.getElementById('comentario');
                 
                 const id_tecnico = document.getElementById('tecnico').value;
                 const fecha = document.getElementById('fecha').value;
                 
-                // Llave compuesta limpiando los guiones para que cruce con Power Query
+                // Limpieza de guiones para el cruce con Power Query (ej. de 2026-05-27 a 20260527)
                 const llave_jornada = `${id_tecnico}-${fecha.replace(/-/g, '')}`; 
 
                 const payload = {
@@ -159,12 +173,13 @@
                 btnText.innerText = "Registrando...";
 
                 try {
-                    // AQUÍ VA TU URL DE POWER AUTOMATE
+                    // AQUÍ VA TU URL REAL DE POWER AUTOMATE
                     const urlAutomate = "https://defaultc9a8e948bf0d4f8d9e9d551ac1b45a.48.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/9bd6afe1c8a6458fb8951535152cc54a/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=7om6UfdxQcNtralinqhj9vWLVgM36hT2CNhUe9XKoNk";
                     
                     const response = await fetch(urlAutomate, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        // Si sigues teniendo problemas de CORS en Power BI Web, cambia 'application/json' por 'text/plain'
+                        headers: { 'Content-Type': 'application/json' }, 
                         body: JSON.stringify(payload)
                     });
 
@@ -177,11 +192,10 @@
                             background: "var(--dark-corp)",
                             color: "#F8F9FA",
                             confirmButtonColor: "var(--teal-corp)",
-                            timer: 3000, // Se cierra solo a los 3 segundos
+                            timer: 3000,
                             timerProgressBar: true
                         }).then(() => {
-                            // Limpiamos el comentario para indicar que terminó el proceso
-                            comentarioInput.value = "";
+                            comentarioInput.value = ""; // Limpia el campo
                         });
                     } else {
                         throw new Error("Fallo en el servidor");
@@ -197,7 +211,7 @@
                         confirmButtonColor: "var(--orange-corp)"
                     });
                 } finally {
-                    // --- RESTAURAR BOTÓN SIEMPRE AL FINAL ---
+                    // --- RESTAURAR BOTÓN ---
                     btn.disabled = false;
                     spinner.classList.add('d-none');
                     btnText.innerText = "Guardar Justificación";
