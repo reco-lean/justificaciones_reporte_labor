@@ -120,7 +120,7 @@
                 // Creamos la llave compuesta para que Automate sepa si debe actualizar o insertar
                 const id_tecnico = document.getElementById('tecnico').value;
                 const fecha = document.getElementById('fecha').value;
-                const llave_jornada = `${id_tecnico}-${fecha}`; 
+                const llave_jornada = `${id_tecnico}-${fecha.replace(/-/g, '')}`;
 
                 const payload = {
                     llave_jornada: llave_jornada,
